@@ -78,22 +78,21 @@ const computedCount = computed(() => localConfig.count);
 }
 
 .footer-container {
-  background: var(--el-bg-color);
-  margin: -16px;
+  background: transparent;
 }
 
 .translation-count {
-  margin: 0px;
-  font-size: 1.2em;
-  color: var(--el-text-color-regular);
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--fr-text-secondary);
   text-align: center;
 }
 
 .count-number {
   font-weight: 600;
-  font-size: 1.1em;
+  font-size: 1em;
   margin: 0 3px;
-  color: var(--el-color-success);
+  color: var(--fr-primary);
 }
 
 .right-links {
@@ -103,7 +102,7 @@ const computedCount = computed(() => localConfig.count);
 
 .action-link {
   font-size: 1.2em;
-  transition: all 1s ease;
+  transition: all 0.2s ease;
   text-decoration: none !important;
   display: flex;
   align-items: center;
@@ -147,16 +146,5 @@ const computedCount = computed(() => localConfig.count);
 
 .failed {
   color: var(--el-color-danger) !important;
-}
-
-/* 暗色主题适配 */
-@media (prefers-color-scheme: dark) {
-  .footer-container {
-    background: var(--el-bg-color-darker);
-  }
-  
-  .qrcode-image {
-    border: 1px solid var(--el-border-color);
-  }
 }
 </style>
