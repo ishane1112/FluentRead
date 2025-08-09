@@ -7,7 +7,7 @@
       <el-main class="custom-padding" style="min-height: 320px">
         <Main/>
       </el-main>
-      <el-footer class="custom-padding">
+      <el-footer class="custom-padding" height="20px">
         <Footer/>
       </el-footer>
     </el-container>

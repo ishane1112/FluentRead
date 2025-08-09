@@ -51,7 +51,6 @@
       <el-col :span="20" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="（测试版）选中文本后显示红点，鼠标移到红点上查看翻译结果" placement="top-start" :show-after="500">
         <span class="popup-text popup-vertical-left">
-          <span class="new-feature-badge">新</span>
           划词翻译
           <el-icon class="icon-margin">
             <ChatDotRound />
@@ -70,7 +69,6 @@
       <el-col :span="20" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="（测试版）控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
         <span class="popup-text popup-vertical-left">
-          <span class="new-feature-badge">新</span>
           全文翻译悬浮球
           <el-icon class="icon-margin">
             <ChatDotRound />
@@ -740,35 +738,5 @@ const refreshPage = async () => {
 .refresh-button:hover {
   background-color: #66b1ff;
   color: #fff;
-}
-
-.new-feature-badge {
-  display: inline-block;
-  font-size: 12px;
-  background-color: #f56c6c;
-  color: white;
-  padding: 1px 6px;
-  border-radius: 10px;
-  margin-right: 8px;
-  font-weight: bold;
-  animation: bounce 1s infinite alternate;
-}
-
-@keyframes pulse-glow {
-  0% {
-    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
-  }
-  100% {
-    box-shadow: 0 2px 12px rgba(64, 158, 255, 0.5);
-  }
-}
-
-@keyframes bounce {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(-3px);
-  }
 }
 </style>

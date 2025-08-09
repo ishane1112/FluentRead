@@ -332,7 +332,7 @@ export const defaultOption = {
     style: 1,
     display: 1,
     hotkey: "Control",
-    service: services.microsoft,
+    service: services.custom,
     custom: "http://localhost:11434/v1/chat/completions",
     deeplx: "http://localhost:1188/translate",
     system_role:

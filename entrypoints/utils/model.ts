@@ -1,4 +1,4 @@
-import { defaultOption, services } from "./option";
+import { defaultOption, services, customModelString } from "./option";
 
 interface IMapping {
     [key: string]: string;
@@ -54,6 +54,8 @@ export class Config {
         this.appid = '';
         this.key = '';
         this.model = {};
+        // 默认选择“自定义模型”
+        this.model[this.service] = customModelString;
         this.customModel = {};
         this.proxy = {};
         this.custom = defaultOption.custom;

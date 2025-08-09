@@ -4,43 +4,6 @@
       <el-text class="count-number" type="primary">{{ computedCount }}</el-text>
       次
     </p>
-    <div class="footer-links">
-      <el-link class="action-link left" :class="{ 'failed': buttonText === '清除失败', 'success': buttonText === '清除成功' }" @click="clearCache"
-        :disabled="buttonDisabled">
-        <el-icon v-if="showLoading">
-          <Loading class="el-icon-loading" />
-        </el-icon>
-        {{ buttonText }}
-      </el-link>
-      <div class="right-links">
-        <el-link class="action-link" href="https://fluent.thinkstu.com/" target="_blank">
-          <el-icon class="github-icon">
-            <Star />
-          </el-icon>
-          GitHub开源
-        </el-link>
-      </div>
-    </div>
-    
-    <!-- 赞赏码弹窗 -->
-    <div
-      title="赞赏作者"
-      width="300px"
-      align-center
-      :show-close="true"
-      :close-on-click-modal="true"
-      :close-on-press-escape="true"
-      class="donate-dialog"
-    >
-      <div class="donate-content">
-        <p class="donate-text">如果你觉得这个插件对您有帮助，<br>可以通过微信👇🏻赞赏作者一杯咖啡
-          <el-icon class="donate-icon"><Coffee /></el-icon> </p>
-        <div class="qrcode-container">
-          <img src="/misc/approve.jpg" alt="赞赏码" class="qrcode-image" />
-        </div>
-        <p class="donate-thanks">感谢你的支持！❤️</p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -107,7 +70,6 @@ storage.watch('local:config', (newValue, oldValue) => {
 
 const computedCount = computed(() => localConfig.count);
 
-
 </script>
 
 <style scoped>
@@ -132,13 +94,6 @@ const computedCount = computed(() => localConfig.count);
   font-size: 1.1em;
   margin: 0 3px;
   color: var(--el-color-success);
-}
-
-.footer-links {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
 }
 
 .right-links {
@@ -192,66 +147,6 @@ const computedCount = computed(() => localConfig.count);
 
 .failed {
   color: var(--el-color-danger) !important;
-}
-
-/* 添加成功状态样式 */
-.action-link.success {
-  color: var(--el-color-success) !important;
-}
-
-/* 赞赏码弹窗样式 */
-.donate-dialog :deep(.el-dialog__header) {
-  padding-bottom: 10px;
-  margin-right: 0;
-  text-align: center;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.donate-dialog :deep(.el-dialog__headerbtn) {
-  top: 15px;
-}
-
-.donate-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: -5px;
-}
-
-.donate-text {
-  text-align: center;
-  margin-bottom: 15px;
-  color: var(--el-text-color-primary);
-  line-height: 1.5;
-}
-
-.qrcode-container {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto 15px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--el-border-color-light);
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-}
-
-.qrcode-container:hover {
-  transform: scale(1.02);
-}
-
-.qrcode-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background-color: #fff;
-}
-
-.donate-thanks {
-  text-align: center;
-  margin: 10px 0 15px;
-  color: var(--el-color-success);
-  font-weight: bold;
 }
 
 /* 暗色主题适配 */
