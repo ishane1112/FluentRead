@@ -244,7 +244,7 @@ function setupFloatingBallHotkey() {
     
     // 获取当前配置的快捷键
     const getConfiguredHotkeyParts = () => {
-        return config.floatingBallHotkey.split('+').map(key => {
+        return config.floatingBallHotkey.split('+').map((key: string) => {
             const k = key.toLowerCase();
             // 标准化修饰键名称
             if (k === 'ctrl') return 'control';
@@ -282,7 +282,7 @@ function setupFloatingBallHotkey() {
         const hotkeyParts = getConfiguredHotkeyParts();
         
         // 检查当前按下的键是否匹配配置的快捷键
-        const allKeysPressed = hotkeyParts.every(key => hotkeysPressed.has(key));
+        const allKeysPressed = hotkeyParts.every((key: string) => hotkeysPressed.has(key));
         const noExtraModifiers = (hotkeyParts.includes('control') || !hotkeysPressed.has('control')) && 
                                 (hotkeyParts.includes('alt') || !hotkeysPressed.has('alt')) &&
                                 (hotkeyParts.includes('shift') || !hotkeysPressed.has('shift'));
@@ -350,18 +350,4 @@ function clearAllTranslations() {
     cache.clean();
 
     console.log('已清除所有翻译缓存');
-}
-
-/**
- * 挂载翻译状态组件
- */
-function mountTranslationStatusComponent() {
-    // 创建容器元素
-    const container = document.createElement('div');
-    container.id = 'fluent-read-translation-status-container';
-    document.body.appendChild(container);
-    
-    // 创建并挂载组件
-    const app = createApp(TranslationStatus);
-    app.mount(container);
 }

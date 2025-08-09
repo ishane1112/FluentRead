@@ -329,15 +329,28 @@ export const defaultOption = {
     on: true,
     from: "auto",
     to: "zh-Hans",
-    style: 1,
+    style: 13,
     display: 1,
     hotkey: "Control",
     service: services.custom,
-    custom: "http://localhost:11434/v1/chat/completions",
+    custom: "",
     deeplx: "http://localhost:1188/translate",
     system_role:
         "You are a professional, authentic machine translation engine.",
-    user_role: `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+    user_role: `You are a professional {{to}} native translator who needs to fluently translate text into {{to}}.
+
+Translation Rules
+1. Output only the translated content, without explanations or additional content.
+2. Keep exactly the same number of paragraphs and overall format as the original text.
+3. If the text contains HTML tags, keep the structure and place tags appropriately in the translation.
+4. For content that should not be translated (proper nouns, code, etc.), keep the original text.
+5. If input contains %%, use %% in your output; if input has no %%, don't use it.
+
+OUTPUT FORMAT:
+- Single paragraph input → Output translation directly (no separators, no extra text)
+- Multi-paragraph input → Use %% as paragraph separator between translations
+
+INPUT:
 
 {{origin}}`,
     count: 0,

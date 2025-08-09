@@ -12,7 +12,7 @@ const directSet = new Set([
 // 需要跳过的标签
 const skipSet = new Set([
     'html', 'body', 'script', 'style', 'noscript', 'iframe',
-    'input', 'textarea', 'select', 'button', 'code', 'pre',
+    'input', 'textarea', 'select', 'code', 'pre',
 ]);
 
 // 内联元素集合（可以包含在其他元素内的元素）
@@ -37,51 +37,15 @@ export function grabAllNode(rootNode: Node): Element[] {
 
                 const tag = node.tagName.toLowerCase();
 
-                // 跳过黑名单标签
+                // 黑名单直接拒绝
                 if (skipSet.has(tag) ||
                     node.classList?.contains('sr-only') ||
                     node.classList?.contains('notranslate')) {
                     return NodeFilter.FILTER_REJECT;
                 }
 
-                // 在初始全局翻译时 跳过header与footer
-                if (tag === 'header' || tag === 'footer') {
-                    return NodeFilter.FILTER_REJECT;
-                }
-
-                // 检查是否只包含有效文本内容
-                let hasText = false;
-                let hasElement = false;
-                let hasNonEmptyElement = false;
-
-                for (const child of node.childNodes) {
-                    if (child.nodeType === Node.ELEMENT_NODE) {
-                        hasElement = true;
-                        // 检查子元素是否包含文本
-                        if (child.textContent?.trim()) {
-                            hasNonEmptyElement = true;
-                        }
-                    }
-                    if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
-                        hasText = true;
-                    }
-                }
-
-                // 如果有非空子元素，跳过当前节点
-                if (hasNonEmptyElement) {
-                    return NodeFilter.FILTER_SKIP;
-                }
-
-                if (hasText && !hasElement) {
-                    return NodeFilter.FILTER_ACCEPT;
-                }
-
-                // 如果有子元素，继续遍历
-                if (node.childNodes.length > 0) {
-                    return NodeFilter.FILTER_SKIP;
-                }
-
-                return NodeFilter.FILTER_REJECT;
+                // 其余元素一律接受，交给 grabNode 做精细判断（可避免复杂结构被遗漏）
+                return NodeFilter.FILTER_ACCEPT;
             }
         }
     );
@@ -92,11 +56,10 @@ export function grabAllNode(rootNode: Node): Element[] {
         const translateNode = grabNode(currentNode as Element);
         if (translateNode) {
             result.push(translateNode);
-            // 跳过已确定要翻译的节点的所有子节点
-            walker.currentNode = currentNode.nextSibling || currentNode;
+            // 不再手动跳过子树，避免遗漏嵌套结构中的可翻译段落
         }
     }
-    return Array.from(new Set(result));;
+    return Array.from(new Set(result));
 }
 
 // 返回最终应该翻译的父节点或 false
@@ -122,7 +85,15 @@ export function grabNode(node: any): any {
     }
 
     // 3. 直接翻译：块级元素
-    if (directSet.has(curTag)) return node;
+    if (directSet.has(curTag)) {
+        // 若块级元素仅包裹一个按钮式链接，则优先翻译按钮文本，避免在父节点下方额外追加一行译文
+        const singleBtn = getSingleButtonChild(node);
+        if (singleBtn) {
+            handleButtonTranslation(singleBtn);
+            return false; // 不把父块交给后续双语处理
+        }
+        return node;
+    }
 
     // 4. 按钮处理：特殊处理按钮内的文本
     if (isButton(node, curTag)) {
@@ -137,10 +108,32 @@ export function grabNode(node: any): any {
 
     // 6. 首行文本处理：处理 div 和 label 的首行文本
     if (curTag === 'div' || curTag === 'label') {
-        return handleFirstLineText(node);
+        const hasText = (node.textContent || '').trim().length >= 2;
+        const inlineOnly = detectChildMeta(node);
+        if (hasText && inlineOnly) {
+            return node;
+        }
+        return false;
     }
 
     return false;
+}
+
+// 识别仅含单一按钮/链接子的块级节点
+function getSingleButtonChild(node: Element): Element | null {
+    // 允许存在的文本节点必须是空白
+    const hasNonWhitespaceText = Array.from(node.childNodes).some(n => n.nodeType === Node.TEXT_NODE && (n.textContent || '').trim().length > 0);
+    if (hasNonWhitespaceText) return null;
+    // 仅当元素子节点总数为1且为 a/button 时处理
+    const elementChildren = Array.from(node.children).filter((el: Element) => el.tagName.toLowerCase() !== 'svg');
+    if (elementChildren.length !== 1) return null;
+    const only = elementChildren[0];
+    const tag = only.tagName.toLowerCase();
+    if (tag === 'a' || tag === 'button' || only.getAttribute('role') === 'button') {
+        // 必须有可见文本
+        if ((only.textContent || '').trim()) return only;
+    }
+    return null;
 }
 
 // 检查是否应该跳过节点
@@ -159,12 +152,14 @@ function shouldSkipNode(node: any, tag: string): boolean {
 
 // 检查文本长度
 function checkTextSize(node: any): boolean {
-    // 1. 若文本内容长度超过 3072
-    // 2. 或者 outerHTML 长度超过 4096，都视为过长
-    // 3. 少于3个字符
-    return node.textContent.length > 3072 ||
-        (node.outerHTML && node.outerHTML.length > 4096) ||
-        node.textContent.length < 3;
+    // 放宽最小长度，避免跳过短但有意义的词（如 Learn / Quote / More）
+    const textLen = (node.textContent || '').trim().length;
+    // 1) 超长文本跳过
+    if (textLen > 3072) return true;
+    // 2) outerHTML 超长跳过
+    if (node.outerHTML && node.outerHTML.length > 4096) return true;
+    // 3) 极短文本（<2）跳过；其余短文本交给翻译，避免漏翻
+    return textLen < 2;
 }
 
 // 检查节点内容是否主要为数字
@@ -312,14 +307,19 @@ function isNumericContent(text: string): boolean {
 // 检查是否为按钮
 function isButton(node: any, tag: string): boolean {
     // 1. 若当前标签就是 button
-    // 2. 或者当前标签为 span 并且其父节点为 button，则视为按钮
+    // 2. 或当前标签为 a（常见“按钮式链接”）
+    // 3. 或者当前标签为 span 并且其父节点为 button 或 a
+    // 4. 或者显式声明 role="button"
+    const parentTag = node.parentNode?.tagName?.toLowerCase?.() || '';
     return tag === 'button' ||
-        (tag === 'span' && node.parentNode?.tagName.toLowerCase() === 'button');
+        tag === 'a' ||
+        (tag === 'span' && (parentTag === 'button' || parentTag === 'a')) ||
+        (node.getAttribute && node.getAttribute('role') === 'button');
 }
 
 // 处理按钮翻译
 function handleButtonTranslation(node: any): void {
-    // 1. 若文本非空，则调用 handleBtnTranslation 进行按钮文本翻译处理
+    // 1. 若文本非空，则调用 handleBtnTranslation 进行按钮/链接文本翻译处理
     if (node.textContent.trim()) {
         handleBtnTranslation(node);
     }

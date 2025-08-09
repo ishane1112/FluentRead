@@ -483,6 +483,9 @@ export const selectCompatFn: SelectCompatFn = {
         return false;
     },
     ['reddit.com']: (node: any) => {
+        // 优先选择富文本容器内的段落块
+        const richText = findMatchingElement(node, 'div[data-test-id="post-content"] div[data-click-id="text"]');
+        if (richText) return richText;
         // 判断是否应该跳过该节点
         if (shouldSkipRedditElement(node)) {
             debugLog('Reddit', '跳过Reddit元素', node.textContent);

@@ -30,17 +30,14 @@ export async function translateText(origin: string, context: string = document.t
     useCache = config.useCache,
   } = options;
 
-  // 如果目标语言与当前文本语言相同，直接返回原文
-  if (detectlang(origin.replace(/[\s\u3000]/g, '')) === config.to) {
-    return origin;
-  }
+  // 语言短路判断移除：交由上层 shouldSkipByLanguage 控制，避免误判导致不翻译
 
-  // 检查缓存
+  // 检查缓存（忽略与原文相同的缓存，以避免历史误判缓存导致的永远不翻译）
   if (useCache) {
     const cachedResult = cache.localGet(origin);
-    if (cachedResult) {
+    if (cachedResult && cachedResult !== origin) {
       if (isDev) {
-        console.log('[翻译API] 命中缓存，直接返回缓存结果');
+        console.log('[翻译API] 命中有效缓存');
       }
       return cachedResult;
     }
@@ -64,18 +61,28 @@ export async function translateText(origin: string, context: string = document.t
           )
         ]) as string;
 
-        // 如果翻译结果为空或与原文完全相同，直接返回原文
-        if (!result || result === origin) {
+        // 如果翻译结果为空，回退为原文
+        if (!result) {
           return origin;
         }
 
-        // 缓存翻译结果
-        if (useCache) {
+        // 仅当结果与原文不同才写入缓存，防止将英文原文缓存为“翻译”
+        if (useCache && result !== origin) {
           cache.localSet(origin, result);
         }
 
         return result;
-      } catch (error) {
+      } catch (error: any) {
+        const message = String(error?.message || error || '');
+        // 针对扩展上下文失效的错误，进行一次短暂重试；仍失败则提示刷新页面
+        const isInvalidated = message.includes('Extension context invalidated') ||
+                              message.includes('Receiving end does not exist') ||
+                              message.includes('The message port closed');
+        if (isInvalidated && retryCount < 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return translationTask(retryCount + 1);
+        }
+
         // 处理错误，根据重试策略决定是否重试
         if (retryCount < maxRetries) {
           if (isDev) {
