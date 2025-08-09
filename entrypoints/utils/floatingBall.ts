@@ -37,7 +37,18 @@ export function mountFloatingBall(position?: 'left' | 'right') {
     onDocClick: () => {
     },
     onSettingsClick: () => {
-      browser.runtime.sendMessage({ type: 'openOptionsPage' });
+      browser.runtime.sendMessage({ type: 'openOptionsPage' }).catch((err: any) => {
+        const msg = String(err?.message || err || '');
+        if (
+          msg.includes('Extension context invalidated') ||
+          msg.includes('Receiving end does not exist') ||
+          msg.includes('The message port closed')
+        ) {
+          console.warn('[Immersive Reading] 扩展上下文失效，无法打开设置页，建议刷新页面后重试');
+        } else {
+          console.warn('[Immersive Reading] 打开设置页失败：', err);
+        }
+      });
     },
     // 添加位置变化事件监听
     onPositionChanged: (newPosition: 'left' | 'right') => {

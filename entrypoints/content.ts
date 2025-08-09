@@ -10,6 +10,21 @@ import { cancelAllTranslations } from "@/entrypoints/utils/translateApi";
 import { createApp } from 'vue';
 import TranslationStatus from '@/components/TranslationStatus.vue';
 
+// 全局拦截未捕获的 Promise 拒绝，屏蔽扩展上下文失效时的噪声错误
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const message = String((event?.reason?.message) || event?.reason || '');
+    if (
+      message.includes('Extension context invalidated') ||
+      message.includes('Receiving end does not exist') ||
+      message.includes('The message port closed')
+    ) {
+      console.warn('[Immersive Reading] 扩展上下文失效，建议刷新页面后重试');
+      event.preventDefault();
+    }
+  });
+}
+
 export default defineContentScript({
     matches: ['<all_urls>'],  // 匹配所有页面
     runAt: 'document_end',  // 在页面加载完成后运行
@@ -350,4 +365,19 @@ function clearAllTranslations() {
     cache.clean();
 
     console.log('已清除所有翻译缓存');
+}
+
+// 挂载翻译状态组件
+function mountTranslationStatusComponent() {
+    const containerId = 'fluent-read-translation-status-container';
+    if (document.getElementById(containerId)) return;
+    const container = document.createElement('div');
+    container.id = containerId;
+    document.body.appendChild(container);
+    try {
+        const app = createApp(TranslationStatus);
+        app.mount(container);
+    } catch (e) {
+        console.warn('[Immersive Reading] 挂载翻译状态组件失败:', e);
+    }
 }

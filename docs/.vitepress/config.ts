@@ -1,15 +1,16 @@
+// @ts-nocheck
 import { defineConfig } from 'vitepress'
 import viteImagemin from 'vite-plugin-imagemin'
 
 export default defineConfig({
-  title: "流畅阅读",
+  title: "Immersive Reading",
   description: "让所有人都能够拥有基于母语般的阅读体验",
   lang: 'zh-CN',
   lastUpdated: true,
   base: '/',
   
   head: [
-    ['link', { rel: 'icon', href: '/FluentRead/logo.png' }]
+    ['link', { rel: 'icon', href: '/logo.png' }]
   ],
   
   vite: {
@@ -64,7 +65,7 @@ export default defineConfig({
       {
         text: '介绍',
         items: [
-          { text: '什么是流畅阅读?', link: '/guide/' },
+          { text: '什么是 Immersive Reading?', link: '/guide/' },
           { text: '快速安装', link: '/guide/getting-started' },
           { text: '功能介绍', link: '/guide/features' }
         ]
@@ -85,12 +86,12 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/Bistutu/FluentRead' }
+      { icon: 'github', link: 'https://github.com/your-username/Immersive-Reading' }
     ],
 
     footer: {
       message: '基于 GPL-3.0 许可发布',
-      copyright: 'Copyright © 2025-present FluentRead'
+      copyright: 'Copyright © 2025-present Immersive Reading'
     }
   },
   

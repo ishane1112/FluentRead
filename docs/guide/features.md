@@ -1,6 +1,6 @@
 # 功能介绍
 
-流畅阅读提供了丰富的功能特性，让你的阅读体验更加流畅自然。
+沉浸式阅读提供了丰富的功能特性，让你的阅读体验更加流畅自然。
 
 ## 翻译模式
 
@@ -72,4 +72,4 @@
 ## 下一步
 
 - 查看[基本配置](../config/)和[翻译引擎配置](../config/translation-engines.md)了解更多配置选项
-- 访问我们的 [GitHub 仓库](https://github.com/Bistutu/FluentRead)参与讨论 
+- 访问我们的 [GitHub 仓库](https://github.com/your-username/Immersive-Reading)参与讨论 

@@ -145,126 +145,137 @@ onUnmounted(() => {
 <style scoped>
 .translation-status-container {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 24px;
+  right: 24px;
   z-index: 9999;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .translation-status-card {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  width: 220px;
-  transition: all 0.3s ease;
-  border: 1px solid #e0e0e0;
+  width: 200px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.translation-status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .translation-status-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  background-color: #3498db;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  font-weight: bold;
+  font-weight: 500;
+  font-size: 12px;
 }
 
 .translation-status-close {
   cursor: pointer;
-  font-size: 16px;
-  width: 20px;
-  height: 20px;
+  font-size: 14px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
+  transition: all 0.15s ease;
+  opacity: 0.8;
 }
 
 .translation-status-close:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.25);
+  opacity: 1;
 }
 
 .translation-status-content {
-  padding: 12px;
+  padding: 10px 12px;
 }
 
 .translation-status-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .translation-status-label {
-  color: #666;
+  color: #6b7280;
+  font-weight: 400;
 }
 
 .translation-status-value {
   font-weight: 600;
-  color: #333;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
 }
 
 .translation-status-progress {
-  height: 6px;
-  background-color: #f1f1f1;
-  border-radius: 3px;
+  height: 4px;
+  background-color: #f3f4f6;
+  border-radius: 2px;
   overflow: hidden;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .translation-status-progress-bar {
   height: 100%;
-  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: 2px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 暗黑模式支持 - 使用 :root[class="dark"] 选择器匹配 FluentRead 的主题系统 */
+/* 暗黑模式支持 */
 :root[class="dark"] .translation-status-card {
-  background-color: #2d3436;
-  border-color: #4d4d4d;
-  color: #dfe6e9;
+  background: rgba(31, 41, 55, 0.95);
+  border-color: rgba(75, 85, 99, 0.3);
 }
 
 :root[class="dark"] .translation-status-header {
-  background-color: #2980b9;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
 }
 
 :root[class="dark"] .translation-status-label {
-  color: #b2bec3;
+  color: #9ca3af;
 }
 
 :root[class="dark"] .translation-status-value {
-  color: #dfe6e9;
+  color: #f9fafb;
 }
 
 :root[class="dark"] .translation-status-progress {
-  background-color: #3d3d3d;
+  background-color: #374151;
 }
 
-/* 保留媒体查询以支持自动模式 */
+/* 媒体查询支持 */
 @media (prefers-color-scheme: dark) {
   :root:not([class="light"]) .translation-status-card {
-    background-color: #2d3436;
-    border-color: #4d4d4d;
-    color: #dfe6e9;
+    background: rgba(31, 41, 55, 0.95);
+    border-color: rgba(75, 85, 99, 0.3);
   }
   
   :root:not([class="light"]) .translation-status-header {
-    background-color: #2980b9;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   }
   
   :root:not([class="light"]) .translation-status-label {
-    color: #b2bec3;
+    color: #9ca3af;
   }
   
   :root:not([class="light"]) .translation-status-value {
-    color: #dfe6e9;
+    color: #f9fafb;
   }
   
   :root:not([class="light"]) .translation-status-progress {
-    background-color: #3d3d3d;
+    background-color: #374151;
   }
 }
 </style> 

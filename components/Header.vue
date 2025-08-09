@@ -1,7 +1,7 @@
 <template>
   <div class="header-container">
     <div class="title-section">
-      <h1 class="title">流畅阅读 <span class="version">V{{version}}</span></h1>
+      <h1 class="title">沉浸式阅读 <span class="version">V{{version}}</span></h1>
     </div>
     <div class="status-section">
       <span class="status-label">插件状态</span>
