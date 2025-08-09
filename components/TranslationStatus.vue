@@ -172,7 +172,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #6b7280;
   color: white;
   font-weight: 500;
   font-size: 12px;
@@ -240,7 +240,7 @@ onUnmounted(() => {
 }
 
 :root[class="dark"] .translation-status-header {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: #4b5563;
 }
 
 :root[class="dark"] .translation-status-label {
@@ -263,7 +263,7 @@ onUnmounted(() => {
   }
   
   :root:not([class="light"]) .translation-status-header {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    background: #4b5563;
   }
   
   :root:not([class="light"]) .translation-status-label {
