@@ -4,7 +4,9 @@
       "Bash(pnpm install:*)",
       "Bash(pnpm build)",
       "Bash(pnpm zip:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npm run zip:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   }

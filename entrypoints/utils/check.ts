@@ -96,5 +96,12 @@ export function contentPostHandler(text: string) {
     // 替换掉<think>与</think>之间的内容
     let content = text;
     content = content.replace(/^<think>[\s\S]*?<\/think>/, "");
+    
+    // 修复编号列表中的标点符号错误
+    // 将 "1。" "2。" 等改回 "1. " "2. " 
+    content = content.replace(/(\d+)。(\s)/g, '$1. $2');
+    // 处理没有空格的情况: "1。" -> "1. "
+    content = content.replace(/(\d+)。([^\s\d])/g, '$1. $2');
+    
     return content;
 }

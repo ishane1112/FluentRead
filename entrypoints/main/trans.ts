@@ -15,6 +15,7 @@ export let originalContents = new Map(); // 保存原始内容
 let isAutoTranslating = false; // 控制是否继续翻译新内容
 let observer: IntersectionObserver | null = null; // 保存观察器实例
 let mutationObserver: MutationObserver | null = null; // 保存 DOM 变化观察器实例
+let observedNodes = new WeakSet(); // 跟踪已被观察的节点，避免重复观察
 
 // 使用自定义属性标记已翻译的节点
 const TRANSLATED_ATTR = 'data-fr-translated';
@@ -23,15 +24,151 @@ const PROCESSING_ATTR = 'data-fr-processing';
 
 let nodeIdCounter = 0; // 节点ID计数器
 
-// 仅在文本足够长时依据语言检测决定是否跳过
+// 安全地观察节点，避免重复观察和状态混乱
+function safeObserveNode(node: Element) {
+    if (!observer || !isAutoTranslating) return;
+    
+    // 检查节点是否已经在处理中或已翻译
+    if (node.hasAttribute(PROCESSING_ATTR) || node.getAttribute(TRANSLATED_ATTR) === 'true') {
+        return;
+    }
+    
+    // 检查是否已经被观察过
+    if (observedNodes.has(node)) {
+        return;
+    }
+    
+    // 清理可能存在的旧loading动画
+    const existingSpinners = node.querySelectorAll('.fluent-read-loading');
+    existingSpinners.forEach(spinner => spinner.remove());
+    
+    // 标记为已观察并开始观察
+    observedNodes.add(node);
+    observer.observe(node);
+}
+
+// 清理节点的翻译状态和相关元素
+function cleanupNodeTranslationState(node: Element) {
+    // 不再全局禁用MutationObserver，而是使用标记来避免循环
+    const cleanupStartTime = Date.now();
+    
+    // 移除所有可能的loading动画
+    node.querySelectorAll('.fluent-read-loading').forEach(el => el.remove());
+    
+    // 移除错误提示
+    node.querySelectorAll('.fluent-read-retry-wrapper').forEach(el => el.remove());
+    
+    // 移除翻译内容
+    node.querySelectorAll('.fluent-read-bilingual-content').forEach(el => el.remove());
+    
+    // 移除翻译相关的类
+    node.classList.remove('fluent-read-bilingual', 'fluent-read-failure');
+    
+    // 清除翻译状态属性
+    node.removeAttribute(TRANSLATED_ATTR);
+    node.removeAttribute(PROCESSING_ATTR);
+    
+    // 从观察集合中移除
+    observedNodes.delete(node);
+    
+    // 添加临时标记，防止立即重新处理同一节点
+    const tempKey = `cleanup-${node.tagName}-${node.textContent?.substring(0, 30)}-${cleanupStartTime}`;
+    htmlSet.add(tempKey);
+    setTimeout(() => htmlSet.delete(tempKey), 1000);
+}
+
+// 重新创建MutationObserver
+function recreateMutationObserver() {
+    if (!isAutoTranslating) return;
+    
+    mutationObserver = new MutationObserver((mutations) => {
+        if (!isAutoTranslating) return;
+        
+        mutations.forEach(mutation => {
+            // 处理新增的节点
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) { // 元素节点
+                    // 检查是否是临时清理操作产生的变化
+                    const nodeElement = node as Element;
+                    const isCleanupRelated = nodeElement.classList.contains('fluent-read-loading') || 
+                                           nodeElement.classList.contains('fluent-read-retry-wrapper') ||
+                                           nodeElement.classList.contains('fluent-read-bilingual-content');
+                    
+                    if (isCleanupRelated) return; // 跳过清理操作产生的节点
+                    
+                    // 只处理未翻译的新节点
+                    const newNodesRaw = grabAllNode(nodeElement).filter(
+                        n => n.getAttribute(TRANSLATED_ATTR) !== 'true' && !n.hasAttribute(PROCESSING_ATTR)
+                    );
+                    const newNodes = Array.from(new Set(newNodesRaw.flatMap((n: Element) => {
+                        const blocks = getBlockChildrenWithText(n as Element);
+                        return blocks.length >= 2 ? blocks : [n];
+                    })));
+                    
+                    if (newNodes.length > 0) {
+                        console.log(`[FluentRead] 检测到 ${newNodes.length} 个新节点，开始翻译`);
+                        newNodes.forEach(n => safeObserveNode(n));
+                    }
+                }
+            });
+            
+            // 处理内容变化的节点（如X.com的"显示更多"功能）
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                const target = mutation.target as Element;
+                
+                // 跳过清理操作产生的变化
+                if (target && target.nodeType === 1) {
+                    const isCleanupOperation = target.classList.contains('fluent-read-loading') || 
+                                             target.classList.contains('fluent-read-retry-wrapper') ||
+                                             target.classList.contains('fluent-read-bilingual-content') ||
+                                             target.closest('.fluent-read-loading, .fluent-read-retry-wrapper, .fluent-read-bilingual-content');
+                    
+                    if (isCleanupOperation) return;
+                    
+                    // 只处理有意义的变化
+                    const textLength = target.textContent?.trim().length || 0;
+                    if (textLength > 10) {
+                        handleContentExpansion(target);
+                    }
+                }
+            }
+        });
+    });
+    
+    // 监听整个 body 的变化
+    mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true, // 监听文本内容变化
+        characterDataOldValue: true // 保存旧值以便比较
+    });
+}
+
+// 检查文本语言是否与目标语言相同，如果相同则跳过翻译
 function shouldSkipByLanguage(text: string): boolean {
     const clean = (text || '').replace(/[\s\u3000]/g, '');
-    if (clean.length < 20) return false; // 短文本不做语言跳过判断，避免误判
+    
+    // 对于很短的文本（少于10个字符），也进行语言检测，避免无意义的翻译
+    if (clean.length < 3) return false; // 太短无法准确检测
+    
     try {
-        const lang = detectlang(clean);
-        return lang === config.to;
-    } catch {
+        const detectedLang = detectlang(clean);
+        const targetLang = config.to;
+        
+        // 如果检测到的语言与目标语言相同，跳过翻译
+        if (detectedLang === targetLang) {
+            return true;
+        }
+        
+        // 特殊处理：如果目标语言是中文简体，也要检查是否为中文繁体
+        if (targetLang === 'zh-Hans' && detectedLang === 'zh-Hant') {
+            return true; // 简繁中文互转可能不需要
+        }
+        
         return false;
+    } catch (error) {
+        console.debug('[FluentRead] 语言检测失败:', error);
+        return false; // 检测失败时继续翻译，避免漏翻
     }
 }
 
@@ -82,6 +219,7 @@ export function restoreOriginalContent() {
     isAutoTranslating = false;
     htmlSet.clear(); // 清空防抖集合
     nodeIdCounter = 0; // 重置节点ID计数器
+    observedNodes = new WeakSet(); // 重置观察节点集合
     
     // 7. 消除可能存在的全局样式污染
     const tempStyleElements = document.querySelectorAll('style[data-fr-temp-style]');
@@ -115,6 +253,9 @@ export function autoTranslateEnglishPage() {
                 // 去重：正在处理中或已翻译则跳过
                 if (node.hasAttribute(PROCESSING_ATTR) || node.getAttribute(TRANSLATED_ATTR) === 'true') return;
                 
+                // 语言检测：如果内容语言与目标语言相同则跳过
+                if (shouldSkipByLanguage(node.textContent || '')) return;
+                
                 // 为节点分配唯一ID
                 const nodeId = `fr-node-${nodeIdCounter++}`;
                 node.setAttribute(TRANSLATED_ID_ATTR, nodeId);
@@ -139,8 +280,9 @@ export function autoTranslateEnglishPage() {
                     singleTranslate(node, finish, onError);
                 }
 
-                // 停止观察该节点
+                // 停止观察该节点，并从观察集合中移除
                 observer.unobserve(node);
+                observedNodes.delete(node);
             }
         });
     }, {
@@ -151,55 +293,36 @@ export function autoTranslateEnglishPage() {
 
     // 开始观察所有节点
     nodes.forEach(node => {
-        observer?.observe(node);
+        safeObserveNode(node);
     });
 
     // 创建 MutationObserver 监听 DOM 变化
-    mutationObserver = new MutationObserver((mutations) => {
-        if (!isAutoTranslating) return;
-        
-        mutations.forEach(mutation => {
-            // 处理新增的节点
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) { // 元素节点
-                    // 只处理未翻译的新节点
-                    const newNodesRaw = grabAllNode(node as Element).filter(
-                        n => n.getAttribute(TRANSLATED_ATTR) !== 'true' && !n.hasAttribute(PROCESSING_ATTR)
-                    );
-                    const newNodes = Array.from(new Set(newNodesRaw.flatMap((n: Element) => {
-                        const blocks = getBlockChildrenWithText(n as Element);
-                        return blocks.length >= 2 ? blocks : [n];
-                    })));
-                    newNodes.forEach(n => observer?.observe(n));
-                }
-            });
-            
-            // 处理内容变化的节点（如X.com的"显示更多"功能）
-            if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                const target = mutation.target as Element;
-                if (target && target.nodeType === 1) {
-                    handleContentExpansion(target);
-                }
-            }
-        });
-    });
-
-    // 监听整个 body 的变化
-    mutationObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true, // 监听文本内容变化
-        characterDataOldValue: true // 保存旧值以便比较
-    });
+    recreateMutationObserver();
 }
 
 // 处理内容展开（如X.com的"显示更多"功能）
 function handleContentExpansion(targetNode: Element) {
-    // 防抖 - 避免频繁触发
-    const debounceKey = `expansion-${targetNode.tagName}-${Date.now()}`;
+    // 防抖 - 使用节点的唯一标识符而不是时间戳
+    const nodeKey = targetNode.getAttribute(TRANSLATED_ID_ATTR) || 
+                   `${targetNode.tagName}-${targetNode.textContent?.substring(0, 50)}`;
+    const debounceKey = `expansion-${nodeKey}`;
+    
     if (htmlSet.has(debounceKey)) return;
     htmlSet.add(debounceKey);
-    setTimeout(() => htmlSet.delete(debounceKey), 1000);
+    setTimeout(() => htmlSet.delete(debounceKey), 1000); // 减少防抖时间
+    
+    // 检查是否是清理操作相关的临时键
+    const cleanupKeys = Array.from(htmlSet).filter(key => key.startsWith('cleanup-'));
+    const isRecentlyCleanedUp = cleanupKeys.some(key => {
+        const keyContent = key.substring(8); // 去掉 'cleanup-' 前缀
+        return keyContent.includes(targetNode.tagName) && 
+               keyContent.includes(targetNode.textContent?.substring(0, 30) || '');
+    });
+    
+    if (isRecentlyCleanedUp) {
+        console.log('[FluentRead] 跳过最近清理的节点，避免重复处理');
+        return;
+    }
     
     // 检查是否是X.com的推文文本区域
     if (getMainDomain(location.href) === 'x.com') {
@@ -262,24 +385,26 @@ function handleTwitterContentExpansion(node: Element) {
         if (originalContent !== currentContent) {
             console.log('[FluentRead] 检测到X.com内容展开，重新翻译');
             
-            // 清除旧的翻译标记和内容
-            targetContainer.removeAttribute(TRANSLATED_ATTR);
-            targetContainer.removeAttribute(PROCESSING_ATTR);
-            targetContainer.querySelectorAll('.fluent-read-bilingual-content').forEach(el => el.remove());
-            targetContainer.classList.remove('fluent-read-bilingual');
+            // 清理旧的翻译状态
+            cleanupNodeTranslationState(targetContainer);
             
-            // 更新保存的原始内容
-            originalContents.set(nodeId, currentContent);
+            // 重要：获取清理后的纯净内容作为新的原始内容
+            const cleanCurrentContent = targetContainer.innerHTML;
             
-            // 重新开始观察该节点进行翻译
-            observer?.observe(targetContainer);
+            // 更新保存的原始内容（使用清理后的内容）
+            originalContents.set(nodeId, cleanCurrentContent);
+            
+            // 延迟重新观察，避免立即触发
+            setTimeout(() => {
+                safeObserveNode(targetContainer);
+            }, 100); // 减少延迟时间
         }
     } else if (!wasTranslated) {
         // 如果这是未翻译的新内容，开始观察
         const candidateNodes = grabAllNode(targetContainer).filter(
             n => n.getAttribute(TRANSLATED_ATTR) !== 'true' && !n.hasAttribute(PROCESSING_ATTR)
         );
-        candidateNodes.forEach(n => observer?.observe(n));
+        candidateNodes.forEach(n => safeObserveNode(n));
     }
 }
 
@@ -303,21 +428,23 @@ function handleGenericContentExpansion(node: Element) {
             if (originalContent && currentContent.length > originalContent.length * 1.2) {
                 console.log('[FluentRead] 检测到内容展开，重新翻译');
                 
-                // 清除旧的翻译
-                textNode.removeAttribute(TRANSLATED_ATTR);
-                textNode.removeAttribute(PROCESSING_ATTR);
-                textNode.querySelectorAll('.fluent-read-bilingual-content').forEach(el => el.remove());
-                textNode.classList.remove('fluent-read-bilingual');
+                // 清理旧的翻译状态
+                cleanupNodeTranslationState(textNode);
                 
-                // 更新保存的内容
-                originalContents.set(nodeId, currentContent);
+                // 重要：获取清理后的纯净内容作为新的原始内容
+                const cleanCurrentContent = textNode.innerHTML;
                 
-                // 重新翻译
-                observer?.observe(textNode);
+                // 更新保存的内容（使用清理后的内容）
+                originalContents.set(nodeId, cleanCurrentContent);
+                
+                // 延迟重新观察，避免立即触发
+                setTimeout(() => {
+                    safeObserveNode(textNode);
+                }, 100); // 减少延迟时间
             }
         } else if (!wasTranslated) {
             // 新内容，开始翻译
-            observer?.observe(textNode);
+            safeObserveNode(textNode);
         }
     });
 }
@@ -467,9 +594,13 @@ export function handleSingleTranslation(node: any, slide: boolean) {
 
 
 function bilingualTranslate(node: any, nodeOuterHTML?: any, onFinish?: (s: boolean)=>void, onError?: ()=>void) {
-    if (shouldSkipByLanguage(node.textContent)) { onFinish?.(false); return; }
+    // 在显示loading动画前先进行语言检测
+    if (shouldSkipByLanguage(node.textContent)) { 
+        onFinish?.(false); 
+        return; 
+    }
 
-    // 若当前节点包含多个块级段落子元素，则改为“按子段落批量翻译并逐一挂载”
+    // 若当前节点包含多个块级段落子元素，则改为"按子段落批量翻译并逐一挂载"
     const blockChildren = getBlockChildrenWithText(node as Element);
     if (blockChildren.length >= 2) {
         const parts = blockChildren.map((el) => (el.textContent || '').trim());
@@ -533,7 +664,11 @@ function bilingualTranslate(node: any, nodeOuterHTML?: any, onFinish?: (s: boole
 
 
 export function singleTranslate(node: any, onFinish?: (s: boolean)=>void, onError?: ()=>void) {
-    if (shouldSkipByLanguage(node.textContent)) { onFinish?.(false); return; }
+    // 在显示loading动画前先进行语言检测
+    if (shouldSkipByLanguage(node.textContent)) { 
+        onFinish?.(false); 
+        return; 
+    }
 
     let origin: string;
     if (servicesType.isMachine(config.service)) {
@@ -578,6 +713,12 @@ export function singleTranslate(node: any, onFinish?: (s: boolean)=>void, onErro
 
 export const handleBtnTranslation = throttle((node: any) => {
     const origin = node.innerText;
+    
+    // 检查按钮文本语言是否与目标语言相同
+    if (shouldSkipByLanguage(origin)) {
+        return;
+    }
+    
     const cached = cache.localGet(origin);
     if (cached) {
         node.innerText = cached;
