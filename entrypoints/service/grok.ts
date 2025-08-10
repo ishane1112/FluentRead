@@ -1,7 +1,6 @@
 import {method, urls} from "../utils/constant";
 import {commonMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
-import {contentPostHandler} from "@/entrypoints/utils/check";
 
 /**
  * Grok 服务实现
@@ -28,7 +27,7 @@ async function grok(message: any) {
         }
 
         const result = await resp.json();
-        return contentPostHandler(result.choices[0].message.content);
+        return result.choices[0].message.content;
     } catch (error) {
         console.error('Grok API调用失败:', error);
         throw error;
