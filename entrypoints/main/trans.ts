@@ -93,8 +93,10 @@ export function autoTranslateEnglishPage() {
     // 如果已经在翻译中，则返回
     if (isAutoTranslating) return;
     
-    // 获取所有需要翻译的节点
+    // 获取需要翻译的节点
     const rawNodes = grabAllNode(document.body);
+    console.log(`[FluentRead] 找到 ${rawNodes.length} 个节点需要翻译`);
+    
     // 规范化：若节点是容器且含多个块级段落，则改为子段落集合
     const nodes = Array.from(new Set(rawNodes.flatMap((n: Element) => {
         const blocks = getBlockChildrenWithText(n as Element);
@@ -179,6 +181,7 @@ export function autoTranslateEnglishPage() {
         subtree: true
     });
 }
+
 
 // 处理鼠标悬停翻译的主函数
 export function handleTranslation(mouseX: number, mouseY: number, delayTime: number = 0) {
