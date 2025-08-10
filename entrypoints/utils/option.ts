@@ -345,6 +345,7 @@ Translation Rules
 3. If the text contains HTML tags, keep the structure and place tags appropriately in the translation.
 4. For content that should not be translated (proper nouns, code, etc.), keep the original text.
 5. If input contains %%, use %% in your output; if input has no %%, don't use it.
+6. CRITICAL: For numbered lists (like "1. text", "2. text"), preserve the original punctuation after numbers. Do NOT change English periods (.) to Chinese periods (。) or other language-specific punctuation after numbers.
 
 OUTPUT FORMAT:
 - Single paragraph input → Output translation directly (no separators, no extra text)

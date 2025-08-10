@@ -9,6 +9,7 @@ import { mountSelectionTranslator, unmountSelectionTranslator } from "@/entrypoi
 import { cancelAllTranslations } from "@/entrypoints/utils/translateApi";
 import { createApp } from 'vue';
 import TranslationStatus from '@/components/TranslationStatus.vue';
+import { handleXShowMore, checkAndTranslateExpandedTweets } from '@/entrypoints/main/x-show-more';
 
 // 全局拦截未捕获的 Promise 拒绝，屏蔽扩展上下文失效时的噪声错误
 if (typeof window !== 'undefined') {
@@ -31,6 +32,17 @@ export default defineContentScript({
     async main() {
         await configReady // 等待配置加载完成
         if (config.on === false) return; // 如果配置关闭，则不执行任何操作
+        
+        // 初始化X.com的"显示更多"处理器
+        if (window.location.hostname.includes('x.com') || 
+            window.location.hostname.includes('twitter.com')) {
+            handleXShowMore();
+            // 延迟检查已展开的推文
+            setTimeout(() => {
+                checkAndTranslateExpandedTweets();
+            }, 2000);
+        }
+        
         // 添加手动翻译事件监听器
         setupManualTranslationTriggers();
         // 添加悬浮球快捷键事件监听器

@@ -89,16 +89,20 @@
     overflow-wrap: break-word; /* 处理长单词或 URL 的断行，避免溢出 */
 }
 
+/* 浅色背景系列在深色页面上可能继承白色前景，强制设为深色以保证可读性 */
 .fluent-display-lightyellow {
     background-color: #FBDE68;
+    color: #111 !important;
 }
 
 .fluent-display-lightblue {
     background-color: rgba(64, 158, 255, 0.1);
+    color: #111 !important;
 }
 
 .fluent-display-lightgray {
     background-color: rgba(158, 158, 158, 0.1);
+    color: #111 !important;
 }
 
 .fluent-display-italic {

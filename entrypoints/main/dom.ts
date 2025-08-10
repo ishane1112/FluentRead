@@ -44,7 +44,7 @@ export function grabAllNode(rootNode: Node): Element[] {
                     return NodeFilter.FILTER_REJECT;
                 }
 
-                // 其余元素一律接受，交给 grabNode 做精细判断（可避免复杂结构被遗漏）
+                // 其余元素一律接受，交给 grabNode 做精细判断
                 return NodeFilter.FILTER_ACCEPT;
             }
         }
@@ -56,11 +56,11 @@ export function grabAllNode(rootNode: Node): Element[] {
         const translateNode = grabNode(currentNode as Element);
         if (translateNode) {
             result.push(translateNode);
-            // 不再手动跳过子树，避免遗漏嵌套结构中的可翻译段落
         }
     }
     return Array.from(new Set(result));
 }
+
 
 // 返回最终应该翻译的父节点或 false
 export function grabNode(node: any): any {
@@ -71,6 +71,9 @@ export function grabNode(node: any): any {
 
     // 1. 快速过滤：跳过不需要翻译的节点
     if (shouldSkipNode(node, curTag)) return false;
+    
+    // 2. 主内容区域判断：跳过非主内容区域
+    if (shouldSkipNonMainContent(node)) return false;
 
     // 2. 特殊适配：根据域名进行特殊处理
     const domainHandler = selectCompatFn[getMainDomain(location.href.split('?')[0])];
@@ -148,6 +151,132 @@ function shouldSkipNode(node: any, tag: string): boolean {
         node.isContentEditable ||
         checkTextSize(node) ||
         isMainlyNumericContent(node);
+}
+
+// 检查是否应该跳过非主内容区域的节点
+function shouldSkipNonMainContent(node: any): boolean {
+    // 如果节点在主内容区域内，则不跳过
+    if (isInMainContentArea(node)) return false;
+    
+    // 如果页面没有明确的主内容标识，使用更宽松的策略
+    if (!hasExplicitMainContent()) {
+        return isNonMainContentArea(node);
+    }
+    
+    // 如果有明确的主内容标识，则跳过所有不在主内容区域的节点
+    return true;
+}
+
+// 检查页面是否有明确的主内容标识
+function hasExplicitMainContent(): boolean {
+    return !!(
+        document.querySelector('main') ||
+        document.querySelector('article') ||
+        document.querySelector('[role="main"]') ||
+        document.querySelector('[class*="main"]') ||
+        document.querySelector('[class*="content"]') ||
+        document.querySelector('[id*="main"]') ||
+        document.querySelector('[id*="content"]')
+    );
+}
+
+// 判断节点是否在主内容区域内
+function isInMainContentArea(node: any): boolean {
+    let current = node;
+    while (current && current !== document.body) {
+        // 检查当前节点或其祖先是否是主内容容器
+        if (current.tagName) {
+            const tag = current.tagName.toLowerCase();
+            if (tag === 'main' || tag === 'article') return true;
+            if (current.getAttribute && current.getAttribute('role') === 'main') return true;
+            
+            // 检查常见的主内容类名和ID
+            if (current.classList || current.id) {
+                const classNames = current.classList ? Array.from(current.classList).join(' ') : '';
+                const id = current.id || '';
+                const combined = `${classNames} ${id}`.toLowerCase();
+                
+                // 精确匹配主内容标识
+                if (/(^|\s|[_-])(main|content|article|post|entry|story|body)([_-]|$|\s)/i.test(combined)) return true;
+                if (/(content[_-]?(area|main|primary|body)|main[_-]?(content|area|body))/i.test(combined)) return true;
+                if (/(post[_-]?(content|body|text)|article[_-]?(content|body|text))/i.test(combined)) return true;
+                
+                // 页面主要内容容器
+                if (/(page[_-]?content|content[_-]?page|page[_-]?body)/i.test(combined)) return true;
+                if (/(primary[_-]?content|content[_-]?primary)/i.test(combined)) return true;
+                
+                // 特定网站模式
+                if (/(reader|reading[_-]?area|text[_-]?content)/i.test(combined)) return true;
+                if (/^(container|wrapper)[_-]?(main|primary|content)$/i.test(combined)) return true;
+            }
+        }
+        current = current.parentElement;
+    }
+    return false;
+}
+
+// 判断节点是否属于非主内容区域
+function isNonMainContentArea(node: any): boolean {
+    let current = node;
+    while (current && current !== document.body) {
+        if (current.tagName) {
+            const tag = current.tagName.toLowerCase();
+            
+            // 检查语义化标签
+            if (['nav', 'aside', 'footer', 'header'].includes(tag)) return true;
+            
+            // 检查 role 属性
+            if (current.getAttribute) {
+                const role = current.getAttribute('role');
+                if (['navigation', 'complementary', 'banner', 'contentinfo'].includes(role)) return true;
+            }
+            
+            // 检查常见的非主内容类名和ID
+            if (current.classList || current.id) {
+                const classNames = current.classList ? Array.from(current.classList).join(' ') : '';
+                const id = current.id || '';
+                const combined = `${classNames} ${id}`.toLowerCase();
+                
+                // 更全面的侧边栏识别
+                if (/(sidebar|side[_-]?bar|side[_-]?panel|side[_-]?nav)/i.test(combined)) return true;
+                if (/\b(side|right[_-]?side|left[_-]?side)\b/i.test(combined)) return true;
+                if (/(column[_-]?container|col[_-]?(lg|md|sm|xs))[^a-z]*sidebar/i.test(combined)) return true;
+                
+                // 导航相关 - 更精确匹配
+                if (/(^|\s|[_-])(nav|navigation|menu|breadcrumb|tabs?)([_-]|$|\s)/i.test(combined)) return true;
+                if (/(top[_-]?nav|main[_-]?nav|primary[_-]?nav)/i.test(combined)) return true;
+                
+                // 页脚相关 - 更全面
+                if (/(footer|foot|bottom|copyright|legal)/i.test(combined)) return true;
+                
+                // 页头相关 - 更全面  
+                if (/(header|head|top|banner|title[_-]?bar)/i.test(combined)) return true;
+                
+                // 广告相关 - 更全面
+                if (/(ad|ads|advertisement|advertising|sponsor|promo|promotion)/i.test(combined)) return true;
+                if (/(google[_-]?ad|adsense|doubleclick)/i.test(combined)) return true;
+                
+                // 其他非主内容 - 更全面
+                if (/(comment|comments|reply|replies)/i.test(combined)) return true;
+                if (/(share|sharing|social|facebook|twitter|linkedin)/i.test(combined)) return true;
+                if (/(related|recommend|suggestion|similar|popular|trending)/i.test(combined)) return true;
+                if (/(tag|tags|category|categories|label|labels)/i.test(combined)) return true;
+                if (/(widget|tool|utility|search[_-]?box)/i.test(combined)) return true;
+                if (/(meta|info|author|date|time|published)/i.test(combined)) return true;
+                
+                // 布局容器相关
+                if (/(container|wrapper|panel)[_-]?(side|right|left|secondary)/i.test(combined)) return true;
+                if (/(right|left)[_-]?(column|col|panel|container)/i.test(combined)) return true;
+                
+                // 特定网站常见模式
+                if (/(toc|table[_-]?of[_-]?contents)/i.test(combined)) return true;
+                if (/(profile|user[_-]?info|avatar)/i.test(combined)) return true;
+                if (/(notification|alert|message|toast)/i.test(combined)) return true;
+            }
+        }
+        current = current.parentElement;
+    }
+    return false;
 }
 
 // 检查文本长度

@@ -326,7 +326,7 @@ export function handleSingleTranslation(node: any, slide: boolean) {
 function bilingualTranslate(node: any, nodeOuterHTML?: any, onFinish?: (s: boolean)=>void, onError?: ()=>void) {
     if (shouldSkipByLanguage(node.textContent)) { onFinish?.(false); return; }
 
-    // 若当前节点包含多个块级段落子元素，则改为“按子段落批量翻译并逐一挂载”
+    // 若当前节点包含多个块级段落子元素，则改为"按子段落批量翻译并逐一挂载"
     const blockChildren = getBlockChildrenWithText(node as Element);
     if (blockChildren.length >= 2) {
         const parts = blockChildren.map((el) => (el.textContent || '').trim());

@@ -1,8 +1,17 @@
 {
   "permissions": {
     "allow": [
+<<<<<<< HEAD
       "Bash(git add:*)",
       "Bash(find:*)"
+=======
+      "Bash(pnpm install:*)",
+      "Bash(pnpm build)",
+      "Bash(pnpm zip:*)",
+      "Bash(dir:*)",
+      "Bash(npm run zip:*)",
+      "Bash(npm run build:*)"
+>>>>>>> 37f1d20633feb5a100b6e46a5bcd2e17b450c65b
     ],
     "deny": []
   }
