@@ -159,6 +159,7 @@ export function autoTranslateEnglishPage() {
         if (!isAutoTranslating) return;
         
         mutations.forEach(mutation => {
+            // 处理新增的节点
             mutation.addedNodes.forEach(node => {
                 if (node.nodeType === 1) { // 元素节点
                     // 只处理未翻译的新节点
@@ -172,13 +173,152 @@ export function autoTranslateEnglishPage() {
                     newNodes.forEach(n => observer?.observe(n));
                 }
             });
+            
+            // 处理内容变化的节点（如X.com的"显示更多"功能）
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                const target = mutation.target as Element;
+                if (target && target.nodeType === 1) {
+                    handleContentExpansion(target);
+                }
+            }
         });
     });
 
     // 监听整个 body 的变化
     mutationObserver.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
+        characterData: true, // 监听文本内容变化
+        characterDataOldValue: true // 保存旧值以便比较
+    });
+}
+
+// 处理内容展开（如X.com的"显示更多"功能）
+function handleContentExpansion(targetNode: Element) {
+    // 防抖 - 避免频繁触发
+    const debounceKey = `expansion-${targetNode.tagName}-${Date.now()}`;
+    if (htmlSet.has(debounceKey)) return;
+    htmlSet.add(debounceKey);
+    setTimeout(() => htmlSet.delete(debounceKey), 1000);
+    
+    // 检查是否是X.com的推文文本区域
+    if (getMainDomain(location.href) === 'x.com') {
+        handleTwitterContentExpansion(targetNode);
+        return;
+    }
+    
+    // 通用内容展开处理
+    handleGenericContentExpansion(targetNode);
+}
+
+// 处理X.com特定的内容展开
+function handleTwitterContentExpansion(node: Element) {
+    // 查找可能的推文文本容器
+    const tweetTextSelectors = [
+        'div[data-testid="tweetText"]',
+        'div[lang]', 
+        'span[dir="ltr"]',
+        'span[dir="rtl"]',
+        '[data-testid="cellInnerDiv"] div[lang]'
+    ];
+    
+    let targetContainer: Element | null = null;
+    
+    // 向上查找推文文本容器
+    let current = node;
+    while (current && current !== document.body) {
+        for (const selector of tweetTextSelectors) {
+            if (current.matches?.(selector)) {
+                targetContainer = current;
+                break;
+            }
+        }
+        if (targetContainer) break;
+        current = current.parentElement as Element;
+    }
+    
+    // 如果找不到容器，尝试向下查找
+    if (!targetContainer) {
+        for (const selector of tweetTextSelectors) {
+            const found = node.querySelector(selector);
+            if (found) {
+                targetContainer = found;
+                break;
+            }
+        }
+    }
+    
+    if (!targetContainer) return;
+    
+    // 检查内容是否已经被翻译过
+    const wasTranslated = targetContainer.getAttribute(TRANSLATED_ATTR) === 'true';
+    const nodeId = targetContainer.getAttribute(TRANSLATED_ID_ATTR);
+    
+    if (wasTranslated && nodeId) {
+        // 检查原始内容是否发生变化
+        const originalContent = originalContents.get(nodeId);
+        const currentContent = targetContainer.innerHTML;
+        
+        if (originalContent !== currentContent) {
+            console.log('[FluentRead] 检测到X.com内容展开，重新翻译');
+            
+            // 清除旧的翻译标记和内容
+            targetContainer.removeAttribute(TRANSLATED_ATTR);
+            targetContainer.removeAttribute(PROCESSING_ATTR);
+            targetContainer.querySelectorAll('.fluent-read-bilingual-content').forEach(el => el.remove());
+            targetContainer.classList.remove('fluent-read-bilingual');
+            
+            // 更新保存的原始内容
+            originalContents.set(nodeId, currentContent);
+            
+            // 重新开始观察该节点进行翻译
+            observer?.observe(targetContainer);
+        }
+    } else if (!wasTranslated) {
+        // 如果这是未翻译的新内容，开始观察
+        const candidateNodes = grabAllNode(targetContainer).filter(
+            n => n.getAttribute(TRANSLATED_ATTR) !== 'true' && !n.hasAttribute(PROCESSING_ATTR)
+        );
+        candidateNodes.forEach(n => observer?.observe(n));
+    }
+}
+
+// 处理通用的内容展开
+function handleGenericContentExpansion(node: Element) {
+    // 查找需要重新翻译的文本节点
+    const textNodes = grabAllNode(node).filter(n => {
+        const text = n.textContent?.trim();
+        return text && text.length > 10; // 只处理有意义的文本
+    });
+    
+    textNodes.forEach(textNode => {
+        const wasTranslated = textNode.getAttribute(TRANSLATED_ATTR) === 'true';
+        const nodeId = textNode.getAttribute(TRANSLATED_ID_ATTR);
+        
+        if (wasTranslated && nodeId) {
+            const originalContent = originalContents.get(nodeId);
+            const currentContent = textNode.innerHTML;
+            
+            // 如果内容明显增加（如展开了更多文本），重新翻译
+            if (originalContent && currentContent.length > originalContent.length * 1.2) {
+                console.log('[FluentRead] 检测到内容展开，重新翻译');
+                
+                // 清除旧的翻译
+                textNode.removeAttribute(TRANSLATED_ATTR);
+                textNode.removeAttribute(PROCESSING_ATTR);
+                textNode.querySelectorAll('.fluent-read-bilingual-content').forEach(el => el.remove());
+                textNode.classList.remove('fluent-read-bilingual');
+                
+                // 更新保存的内容
+                originalContents.set(nodeId, currentContent);
+                
+                // 重新翻译
+                observer?.observe(textNode);
+            }
+        } else if (!wasTranslated) {
+            // 新内容，开始翻译
+            observer?.observe(textNode);
+        }
     });
 }
 
